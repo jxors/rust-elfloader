@@ -18,7 +18,7 @@ edition = "2018"
 
 [dependencies]
 log = { version = "0.4", optional = true }
-xmas-elf = "0.8"
+xmas-elf = { git = 'https://github.com/jxors/xmas-elf', branch = "relr-support" }
 bitflags = "1.2"
 
 [target.'cfg(target_family = "unix")'.dev-dependencies]

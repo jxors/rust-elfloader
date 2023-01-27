@@ -45,6 +45,8 @@ pub enum RelocationTypes {
 }
 
 impl RelocationTypes {
+    pub const RELATIVE: RelocationTypes = Self::R_386_RELATIVE;
+
     pub fn from(typ: u32) -> RelocationTypes {
         use RelocationTypes::*;
         match typ {

@@ -140,6 +140,8 @@ pub enum RelocationTypes {
 }
 
 impl RelocationTypes {
+    pub const RELATIVE: RelocationTypes = Self::R_AARCH64_RELATIVE;
+
     /// Construct new aarch64::RelocationTypes
     pub fn from(typ: u32) -> RelocationTypes {
         use RelocationTypes::*;

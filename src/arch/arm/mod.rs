@@ -299,6 +299,8 @@ pub enum RelocationTypes {
 }
 
 impl RelocationTypes {
+    pub const RELATIVE: RelocationTypes = Self::R_ARM_RELATIVE;
+
     /// Construct new arm::RelocationTypes
     pub fn from(typ: u32) -> RelocationTypes {
         use RelocationTypes::*;

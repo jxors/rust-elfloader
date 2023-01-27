@@ -1,5 +1,5 @@
 use crate::{
-    DynamicFlags1, DynamicInfo, ElfLoader, ElfLoaderErr, LoadableHeaders, RelocationEntry,
+    DynamicFlags1, DynamicInfo, ElfLoader, ElfLoaderErr, RelocationEntry,
     RelocationType,
 };
 use core::fmt;
@@ -100,7 +100,7 @@ impl<'s> ElfBinary<'s> {
     }
 
     /// Create a slice of the program headers.
-    pub fn program_headers(&self) -> ProgramIter {
+    pub fn program_headers(&self) -> impl Iterator<Item = ProgramHeader<'_>> {
         self.file.program_iter()
     }
 
@@ -161,7 +161,7 @@ impl<'s> ElfBinary<'s> {
     /// Process the relocation entries for the ELF file.
     ///
     /// Issues call to `loader.relocate` and passes the relocation entry.
-    fn maybe_relocate(&self, loader: &mut dyn ElfLoader) -> Result<(), ElfLoaderErr> {
+    fn maybe_relocate<E: ElfLoader>(&self, loader: &mut E) -> Result<(), ElfLoaderErr> {
         // Relocation types are architecture specific
         let arch = self.get_arch();
 
@@ -216,6 +216,66 @@ impl<'s> ElfBinary<'s> {
                 }
                 SectionData::Rela64(rela_entries) => {
                     iter_entries_and_relocate!(rela_entries, rela_entry);
+                }
+                SectionData::Relr32(relr_entries) => {
+                    let mut addr = 0;
+                    for entry in relr_entries {
+                        if entry.get_value() & 1 == 0 {
+                            addr = entry.get_value();
+                            loader.relocate(RelocationEntry {
+                                rtype: RelocationType::relative(arch)?,
+                                offset: addr as u64,
+                                index: 0,
+                                addend: None,
+                            })?;
+                        } else {
+                            let mut val = entry.get_value();
+
+                            for i in 0..32 {
+                                if val & 1 != 0 {
+                                    loader.relocate(RelocationEntry {
+                                        rtype: RelocationType::relative(arch)?,
+                                        offset: addr as u64 + i * 4,
+                                        index: 0,
+                                        addend: None,
+                                    })?;
+                                }
+
+                                val >>= 1;
+                                addr += 4;
+                            }
+                        }
+                    }
+                }
+                SectionData::Relr64(relr_entries) => {
+                    let mut addr = 0;
+                    for entry in relr_entries {
+                        if entry.get_value() & 1 == 0 {
+                            addr = entry.get_value();
+                            loader.relocate(RelocationEntry {
+                                rtype: RelocationType::relative(arch)?,
+                                offset: addr,
+                                index: 0,
+                                addend: None,
+                            })?;
+                        } else {
+                            let mut val = entry.get_value();
+
+                            for i in 0..64 {
+                                if val & 1 != 0 {
+                                    loader.relocate(RelocationEntry {
+                                        rtype: RelocationType::relative(arch)?,
+                                        offset: addr + i * 8,
+                                        index: 0,
+                                        addend: None,
+                                    })?;
+                                }
+
+                                val >>= 1;
+                                addr += 8;
+                            }
+                        }
+                    }
                 }
                 _ => return Err(ElfLoaderErr::UnsupportedSectionData),
             }
@@ -283,6 +343,8 @@ impl<'s> ElfBinary<'s> {
             ($info:ident, $dyn_entries:expr) => {
                 for dyn_entry in $dyn_entries {
                     let tag = dyn_entry.get_tag()?;
+                    #[cfg(log)]
+                    trace!("Tag: {:?}", tag);
                     parse_entry_tags!($info, dyn_entry, tag);
                 }
             };
@@ -315,10 +377,10 @@ impl<'s> ElfBinary<'s> {
     ///
     /// Will tell loader to create space in the address space / region where the
     /// header is supposed to go, then copy it there, and finally relocate it.
-    pub fn load(&self, loader: &mut dyn ElfLoader) -> Result<(), ElfLoaderErr> {
+    pub fn load<E: ElfLoader>(&self, loader: &mut E) -> Result<(), ElfLoaderErr> {
         self.is_loadable()?;
 
-        loader.allocate(self.iter_loadable_headers())?;
+        loader.allocate(&mut self.iter_loadable_headers())?;
 
         // Load all headers
         for header in self.file.program_iter() {
@@ -360,7 +422,7 @@ impl<'s> ElfBinary<'s> {
         Ok(())
     }
 
-    fn iter_loadable_headers(&self) -> LoadableHeaders {
+    fn iter_loadable_headers(&self) -> impl Iterator<Item = ProgramHeader<'_>> {
         // Trying to determine loadeable headers
         fn select_load(pheader: &ProgramHeader) -> bool {
             match pheader {

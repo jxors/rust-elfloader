@@ -24,7 +24,7 @@ impl TestLoader {
 }
 
 impl ElfLoader for TestLoader {
-    fn allocate(&mut self, load_headers: LoadableHeaders) -> Result<(), ElfLoaderErr> {
+    fn allocate<'a>(&mut self, load_headers: impl Iterator<Item = ProgramHeader<'a>>) -> Result<(), ElfLoaderErr> {
         for header in load_headers {
             info!(
                 "allocate base = {:#x} size = {:#x} flags = {}",

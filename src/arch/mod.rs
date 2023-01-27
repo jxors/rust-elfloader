@@ -29,4 +29,14 @@ impl RelocationType {
         };
         Ok(typ)
     }
+
+    pub fn relative(machine: Machine) -> Result<RelocationType, ElfLoaderErr> {
+        Ok(match machine {
+            Machine::X86 => RelocationType::x86(x86::RelocationTypes::RELATIVE),
+            Machine::X86_64 => RelocationType::x86_64(x86_64::RelocationTypes::RELATIVE),
+            Machine::Arm => RelocationType::Arm(arm::RelocationTypes::RELATIVE),
+            Machine::AArch64 => RelocationType::AArch64(aarch64::RelocationTypes::RELATIVE),
+            _ => return Err(ElfLoaderErr::UnsupportedArchitecture),
+        })
+    }
 }

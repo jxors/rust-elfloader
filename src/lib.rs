@@ -27,8 +27,6 @@ pub use xmas_elf::sections::{Rel, Rela};
 pub use xmas_elf::symbol_table::{Entry, Entry64};
 pub use xmas_elf::{P32, P64};
 
-/// An iterator over [`ProgramHeader`] whose type is `LOAD`.
-pub type LoadableHeaders<'a, 'b> = Filter<ProgramIter<'a, 'b>, fn(&ProgramHeader) -> bool>;
 pub type PAddr = u64;
 pub type VAddr = u64;
 
@@ -133,7 +131,7 @@ pub struct DynamicInfo {
 /// `relocate` is called for every entry in the RELA table.
 pub trait ElfLoader {
     /// Allocates a virtual region specified by `load_headers`.
-    fn allocate(&mut self, load_headers: LoadableHeaders) -> Result<(), ElfLoaderErr>;
+    fn allocate<'a>(&mut self, load_headers: impl Iterator<Item = ProgramHeader<'a>>) -> Result<(), ElfLoaderErr>;
 
     /// Copies `region` into memory starting at `base`.
     /// The caller makes sure that there was an `allocate` call previously

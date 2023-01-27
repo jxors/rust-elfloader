@@ -59,6 +59,8 @@ pub enum RelocationTypes {
 }
 
 impl RelocationTypes {
+    pub const RELATIVE: RelocationTypes = Self::R_AMD64_RELATIVE;
+
     // Construct a new x86_64::RelocationTypes
     pub fn from(typ: u32) -> RelocationTypes {
         use RelocationTypes::*;
